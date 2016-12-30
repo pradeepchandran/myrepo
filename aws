@@ -1,0 +1,132 @@
+echo "Welcome to AWS instances management script"
+
+
+###############################################
+
+instance=$(aws ec2 describe-instances | grep INSTANCES | grep -E -o "i\-[0-9A-Za-z]+"  | awk 'length($1) == 19 { print $1 }')
+
+name=$(aws ec2 describe-instances | grep TAGS | awk '{print $3}')
+
+#####################################################
+ start()
+{
+        echo "Starting instance..."
+
+     aws ec2 start-instances --instance-ids $instance
+}
+
+
+ stop () 
+{
+        echo "Stoping instance..."
+
+     aws ec2 stop-instances --instance-ids $instance
+}
+
+ terminate ()
+{
+       echo "terminating instance..."    
+
+    aws ec2 terminate-instances --instance-ids $instance
+}
+#################################################
+
+create_image ()
+{
+aws ec2 describe-instances | grep TAGS | awk '{print $3}' > name.txt
+ IFS=$'\n' read -d '' -r -a lines < name.txt
+ tLen=${#lines[@]}
+ counter=0
+ ref=counter
+while [ $counter -lt $tLen ]
+do
+
+
+for instance in $instance
+  do
+  ref=counter
+ aws ec2 create-image --instance-id $instance --name "${lines[ref]}$instance" --description "my server backup" --no-reboot
+
+((counter++))
+
+done
+done
+}
+################################################
+lanuch()
+{
+
+echo "enter the image id  :
+image id for ubuntu 16.04 : ami-e13739f6
+image id for windows 2016 : ami-45e3ec52
+image id for redhat 7     : ami-b63769a1
+"
+read  ami_id
+echo "enter the no:of instance lanuch "
+read  count
+echo "enter the instance type
+      Default type : t2.micro"
+read  instance_type
+echo "enter the key name"
+read key_pair
+echo "enter the security group id
+      Default securuty group id : sg-87080efd"
+read security_groups
+aws ec2 run-instances --image-id $ami_id --count $count --instance-type $instance_type --key-name $key_pair --security-group-ids $security_groups
+
+}
+####################################
+delete_image()
+{
+echo "enter the ower's id"
+read ower_id
+
+aws ec2 describe-images --owners $ower_id | grep IMAGES | awk '{for (I=1;I<=NF;I++) if ($I == "837128923528") {print $(I-4)};}' > ami_id.txt
+ IFS=$'\n' read -d '' -r -a lines < ami_id.txt
+ tLen=${#lines[@]}
+ counter=0
+ ref=counter
+
+while [ $counter -lt $tLen ]
+
+  do
+  ref=counter
+  aws ec2 deregister-image --image-id "${lines[ref]}"
+
+((counter++))
+
+done
+}
+######################################
+printf '1.lanuch a new instances
+2.Start all instances
+3.Stop all instances
+4.Terminate all instances
+5.Create AMI of all instances
+6.Remove AMI of all instances  '
+read OPTIONS
+
+case $OPTIONS in
+     1)
+          lanuch
+           ;;
+     2)
+          start
+          ;;
+     3)
+          stop
+          ;;
+     4)
+           terminate
+          ;;
+     5)   
+           create_image
+          ;;
+     6)
+           delete_image
+          ;;
+     *)
+           echo "not a vaid key..."
+          ;;
+esac
+
